@@ -8,6 +8,7 @@ class Settings(BaseSettings):
 
     ollama_base_url: str = "http://localhost:11434"
     ollama_model: str = "llama3.2"
+    ollama_eval_model: str = "mistral"
     ollama_timeout: int = 120
     embedding_model: str = "all-MiniLM-L6-v2"
     embedding_batch_size: int = 32

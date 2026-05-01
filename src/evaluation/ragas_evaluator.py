@@ -1,27 +1,34 @@
-"""Lightweight evaluation metrics implemented in pure Python — no LLM API required."""
+"""Lightweight local metrics for evaluation.
+
+Ragas integration is planned for future versions when using capable API-based
+models.
+"""
 
 import logging
 import re
 
+from src.config import settings
 from src.evaluation import EvalResult
 
 logger = logging.getLogger(__name__)
+
+
+def build_ragas_llm():
+    # Reserved for future Ragas integration with capable models.
+    from openai import AsyncOpenAI
+    from ragas.llms import llm_factory
+
+    client = AsyncOpenAI(
+        api_key="ollama",
+        base_url=f"{settings.ollama_base_url}/v1",
+    )
+    return llm_factory(settings.ollama_eval_model, client=client)
 
 
 def _normalize(text: str) -> str:
     lowercased = text.lower()
     no_punctuation = re.sub(r"[^\w\s]", "", lowercased)
     return no_punctuation.strip()
-
-
-def _rouge_l(hypothesis: str, reference: str) -> float:
-    hyp_words = _normalize(hypothesis).split()
-    ref_words = _normalize(reference).split()
-    if not hyp_words or not ref_words:
-        return 0.0
-    lcs_len = _lcs_length(hyp_words, ref_words)
-    return 2 * lcs_len / (len(hyp_words) + len(ref_words))
-
 
 def _lcs_length(seq_a: list[str], seq_b: list[str]) -> int:
     rows, cols = len(seq_a), len(seq_b)
@@ -33,6 +40,15 @@ def _lcs_length(seq_a: list[str], seq_b: list[str]) -> int:
             else:
                 table[row][col] = max(table[row - 1][col], table[row][col - 1])
     return table[rows][cols]
+
+
+def _rouge_l(hypothesis: str, reference: str) -> float:
+    hyp_words = _normalize(hypothesis).split()
+    ref_words = _normalize(reference).split()
+    if not hyp_words or not ref_words:
+        return 0.0
+    lcs_len = _lcs_length(hyp_words, ref_words)
+    return 2 * lcs_len / (len(hyp_words) + len(ref_words))
 
 
 def _context_hit_rate(retrieved_chunks: list[dict], expected_answer: str) -> float:
@@ -77,5 +93,4 @@ def compute_ragas_metrics(results: list[EvalResult]) -> dict:
     except Exception as exc:
         logger.error("Metric computation failed: %s", exc)
         return {}
-
 
