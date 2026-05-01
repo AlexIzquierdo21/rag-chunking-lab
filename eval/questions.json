@@ -1,0 +1,86 @@
+[
+  {
+    "id": "q001",
+    "question": "What is the attention mechanism in transformers?",
+    "expected_answer": "Attention mechanism allows the model to focus on different parts of the input sequence when producing an output, computing a weighted sum of values based on query-key compatibility.",
+    "source_docs": ["1706.03762.pdf"],
+    "type": "factual"
+  },
+  {
+    "id": "q002",
+    "question": "How many attention heads do the transformer base and large models use?",
+    "expected_answer": "The base model uses 8 attention heads and the large model uses 16 attention heads.",
+    "source_docs": ["1706.03762.pdf"],
+    "type": "factual"
+  },
+  {
+    "id": "q003",
+    "question": "What does BERT stand for and what is its main innovation?",
+    "expected_answer": "BERT stands for Bidirectional Encoder Representations from Transformers. Its main innovation is pre-training deep bidirectional representations by jointly conditioning on both left and right context.",
+    "source_docs": ["1810.04805.pdf"],
+    "type": "factual"
+  },
+  {
+    "id": "q004",
+    "question": "What are the two steps in BERT's framework?",
+    "expected_answer": "The two steps are pre-training and fine-tuning. During pre-training BERT is trained on unlabeled data, and during fine-tuning it is initialized with pre-trained parameters and fine-tuned on labeled data.",
+    "source_docs": ["1810.04805.pdf"],
+    "type": "factual"
+  },
+  {
+    "id": "q005",
+    "question": "What is Retrieval-Augmented Generation?",
+    "expected_answer": "RAG is a model that combines parametric memory from a pre-trained language model with non-parametric memory from a dense vector index of documents, retrieved using a neural retriever.",
+    "source_docs": ["2005.11401.pdf"],
+    "type": "factual"
+  },
+  {
+    "id": "q006",
+    "question": "What retriever does the RAG model use?",
+    "expected_answer": "RAG uses a Dense Passage Retriever (DPR) to retrieve relevant documents given a query.",
+    "source_docs": ["2005.11401.pdf"],
+    "type": "factual"
+  },
+  {
+    "id": "q007",
+    "question": "How does the transformer architecture eliminate recurrence and what does it use instead?",
+    "expected_answer": "The transformer eliminates recurrence entirely and relies instead on an attention mechanism to draw global dependencies between input and output.",
+    "source_docs": ["1706.03762.pdf"],
+    "type": "factual"
+  },
+  {
+    "id": "q008",
+    "question": "What masking strategy does BERT use during pre-training and why?",
+    "expected_answer": "BERT uses Masked Language Model (MLM) which randomly masks some input tokens and trains the model to predict them, allowing bidirectional training unlike left-to-right models.",
+    "source_docs": ["1810.04805.pdf"],
+    "type": "factual"
+  },
+  {
+    "id": "q009",
+    "question": "How do both the Transformer and RAG models handle sequential information differently?",
+    "expected_answer": "The Transformer replaces recurrence with self-attention for sequence modeling, while RAG augments a sequence-to-sequence model with retrieved documents to inject external knowledge.",
+    "source_docs": ["1706.03762.pdf", "2005.11401.pdf"],
+    "type": "multi-hop"
+  },
+  {
+    "id": "q010",
+    "question": "What pre-training objectives do BERT and RAG share?",
+    "expected_answer": "Both use unsupervised pre-training on large corpora, but BERT uses masked language modeling while RAG relies on a pre-trained BART generator and DPR retriever.",
+    "source_docs": ["1810.04805.pdf", "2005.11401.pdf"],
+    "type": "multi-hop"
+  },
+  {
+    "id": "q011",
+    "question": "What is the capital of Australia?",
+    "expected_answer": "I don't know.",
+    "source_docs": [],
+    "type": "adversarial"
+  },
+  {
+    "id": "q012",
+    "question": "What is the best programming language for web development?",
+    "expected_answer": "I don't know.",
+    "source_docs": [],
+    "type": "adversarial"
+  }
+]
