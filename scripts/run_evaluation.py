@@ -165,10 +165,9 @@ def run_pipeline(
         ragas_rows = [
             {
                 "strategy": strategy_name,
-                "context_recall": _metric_value(metrics, "context_recall"),
-                "context_precision": _metric_value(metrics, "context_precision"),
-                "faithfulness": _metric_value(metrics, "faithfulness"),
-                "answer_relevancy": _metric_value(metrics, "answer_relevancy"),
+                "rouge_l": _metric_value(metrics, "rouge_l"),
+                "context_hit_rate": _metric_value(metrics, "context_hit_rate"),
+                "adversarial_score": _metric_value(metrics, "adversarial_score"),
             }
             for strategy_name, metrics in ragas_summary.items()
         ]

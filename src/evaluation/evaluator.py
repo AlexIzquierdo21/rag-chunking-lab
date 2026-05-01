@@ -3,6 +3,7 @@
 import logging
 import time
 from dataclasses import dataclass
+from dataclasses import field
 
 from src.evaluation import EvalQuestion
 from src.pipeline import Generator, Retriever
@@ -24,6 +25,7 @@ class EvalResult:
     expected_answer: str
     retrieval_latency_ms: float
     generation_latency_ms: float
+    question_type: str = field(default="factual")
 
 
 class Evaluator:
@@ -56,6 +58,7 @@ class Evaluator:
                 expected_answer=question.expected_answer,
                 retrieval_latency_ms=retrieval_latency_ms,
                 generation_latency_ms=generation_latency_ms,
+                question_type=question.type,
             )
         except Exception as exc:
             raise EvaluationError(f"Failed to evaluate question '{question.id}': {exc}") from exc

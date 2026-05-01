@@ -1,0 +1,6 @@
+strategy,context_recall,context_precision,faithfulness,answer_relevancy
+fixed,N/A,N/A,N/A,N/A
+recursive,N/A,N/A,N/A,N/A
+semantic,N/A,N/A,N/A,N/A
+sentence_window,N/A,N/A,N/A,N/A
+late_chunking,N/A,N/A,N/A,N/A
