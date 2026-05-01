@@ -5,6 +5,8 @@ import sys
 import time
 from pathlib import Path
 
+import pandas as pd
+
 from src.chunking import (
     FixedChunking,
     LateChunking,
@@ -12,7 +14,7 @@ from src.chunking import (
     SemanticChunking,
     SentenceWindowChunking,
 )
-from src.evaluation import EvalResult, Evaluator, load_dataset
+from src.evaluation import EvalResult, Evaluator, compute_ragas_metrics, load_dataset
 from src.pipeline import Embedder, Generator, Retriever, load_documents
 from src.report import build_dataframe, save_report, summarize_by_strategy
 
@@ -98,6 +100,16 @@ def _run_strategy(
     return results
 
 
+def _metric_value(metrics: dict, key: str) -> str:
+    value = metrics.get(key)
+    if value is None:
+        return "N/A"
+    try:
+        return f"{float(value):.4f}"
+    except (TypeError, ValueError):
+        return "N/A"
+
+
 def run_pipeline(
     corpus_dir: str,
     dataset_path: str,
@@ -140,6 +152,35 @@ def run_pipeline(
         output_path = Path(output_dir) / "evaluation_results.csv"
         save_report(df, str(output_path))
         logger.info("Report saved to %s", output_path)
+
+        # Step 6 — Compute Ragas metrics per strategy
+        ragas_summary: dict[str, dict] = {}
+        for strategy in active_strategies:
+            strategy_name = strategy.name
+            strategy_results = [result for result in all_results if result.strategy == strategy_name]
+            strategy_metrics = compute_ragas_metrics(strategy_results)
+            logger.info("Ragas metrics for '%s': %s", strategy_name, strategy_metrics)
+            ragas_summary[strategy_name] = strategy_metrics
+
+        ragas_rows = [
+            {
+                "strategy": strategy_name,
+                "context_recall": _metric_value(metrics, "context_recall"),
+                "context_precision": _metric_value(metrics, "context_precision"),
+                "faithfulness": _metric_value(metrics, "faithfulness"),
+                "answer_relevancy": _metric_value(metrics, "answer_relevancy"),
+            }
+            for strategy_name, metrics in ragas_summary.items()
+        ]
+
+        ragas_df = pd.DataFrame(ragas_rows)
+        print("=== Ragas Metrics by Strategy ===")
+        print(ragas_df.to_string(index=False))
+        print()
+
+        ragas_path = Path(output_dir) / "ragas_metrics.csv"
+        ragas_df.to_csv(ragas_path, index=False)
+        logger.info("Ragas metrics saved to %s", ragas_path)
 
     except Exception as exc:
         logger.error("Fatal error during evaluation pipeline: %s", exc, exc_info=True)
