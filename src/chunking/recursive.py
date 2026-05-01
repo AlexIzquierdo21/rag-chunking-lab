@@ -1,3 +1,5 @@
+"""Recursive chunking strategy that splits text based on natural boundaries like paragraphs and sentences."""
+
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 from src.chunking import Chunk, ChunkingStrategy

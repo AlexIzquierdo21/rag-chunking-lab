@@ -1,3 +1,5 @@
+"""Chunking strategy that splits text into fixed-size chunks with overlap between adjacent chunks."""
+
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 from src.chunking import Chunk, ChunkingStrategy
