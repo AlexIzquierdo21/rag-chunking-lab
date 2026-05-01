@@ -1,6 +1,6 @@
-strategy,context_recall,context_precision,faithfulness,answer_relevancy
-fixed,N/A,N/A,N/A,N/A
-recursive,N/A,N/A,N/A,N/A
-semantic,N/A,N/A,N/A,N/A
-sentence_window,N/A,N/A,N/A,N/A
-late_chunking,N/A,N/A,N/A,N/A
+strategy,rouge_l,context_hit_rate,adversarial_score
+fixed,0.2062,0.5160,1.0000
+recursive,0.2746,0.5160,1.0000
+semantic,0.2308,0.4700,1.0000
+sentence_window,0.2458,0.6027,1.0000
+late_chunking,0.2210,0.4393,1.0000
