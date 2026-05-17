@@ -53,7 +53,7 @@ const App = () => {
         {page === 'upload' && <UploadPage files={files} setFiles={setFiles} setProgress={setProgress} setPage={setPage}/>}
         {page === 'configure' && <ConfigurePage selectedStrategies={selectedStrategies} setSelectedStrategies={setSelectedStrategies} setProgress={setProgress} setPage={setPage} dataset={dataset} setDataset={setDataset}/>}
         {page === 'evaluate' && <EvaluatePage enabled={enabled} selectedStrategies={selectedStrategies} files={files} dataset={dataset} setProgress={setProgress} setPage={setPage} runState={runState} setRunState={setRunState}/>}
-        {page === 'results' && <ResultsPage/>}
+        {page === 'results' && <ResultsPage evaluationResults={runState.results} setPage={setPage}/>}
       </main>
     </React.Fragment>
   );
