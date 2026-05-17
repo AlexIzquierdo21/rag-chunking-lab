@@ -1,40 +1,133 @@
 /* Page 3 — Evaluate */
 
-const EvaluatePage = ({ enabled, files, dataset, setProgress, setPage, runState, setRunState }) => {
-  const enabledStrategies = STRATEGIES.filter(s => enabled[s.id]);
-  const { phase, current, perStrategy, elapsed } = runState;
+const EvaluatePage = ({ enabled, selectedStrategies, files, dataset, setProgress, setPage, runState, setRunState }) => {
+  const strategyCatalog = window.STRATEGIES || [];
+  const enabledStrategies = strategyCatalog.filter(s => enabled[s.id]);
+  const { phase, current, perStrategy, elapsed, runId, error } = runState;
 
   React.useEffect(() => {
-    if (phase !== 'running') return;
-    const t = setInterval(() => {
-      setRunState(rs => {
-        const ps = { ...rs.perStrategy };
-        let curIdx = rs.current;
-        const cur = enabledStrategies[curIdx];
-        if (!cur) return rs;
-        const p = (ps[cur.id] ?? 0) + Math.random() * 6 + 2;
-        if (p >= 100) {
-          ps[cur.id] = 100;
-          curIdx += 1;
-        } else {
-          ps[cur.id] = p;
-        }
-        const newElapsed = rs.elapsed + 0.4;
-        if (curIdx >= enabledStrategies.length) {
-          return { ...rs, perStrategy: ps, current: curIdx, phase: 'done', elapsed: newElapsed };
-        }
-        return { ...rs, perStrategy: ps, current: curIdx, elapsed: newElapsed };
-      });
-    }, 220);
-    return () => clearInterval(t);
-  }, [phase, enabledStrategies.length]);
+    if (phase !== 'running' || !runId) {
+      return undefined;
+    }
+    const pollId = setInterval(() => {
+      pollStatus(runId);
+    }, 2000);
+    return () => clearInterval(pollId);
+  }, [phase, runId, enabledStrategies.length]);
 
-  const runEval = () => {
-    setRunState({ phase: 'running', current: 0, perStrategy: {}, elapsed: 0 });
+  React.useEffect(() => {
+    if (phase !== 'running' || !runState.startedAt) {
+      return undefined;
+    }
+    const timerId = setInterval(() => {
+      setRunState((state) => ({
+        ...state,
+        elapsed: Math.max(0, Math.floor(Date.now() / 1000 - state.startedAt)),
+      }));
+    }, 1000);
+    return () => clearInterval(timerId);
+  }, [phase, runState.startedAt]);
+
+  const getApi = () => {
+    if (!window.API) {
+      throw new Error('API client not available');
+    }
+    return window.API;
+  };
+
+  const getProgressValue = (status) => {
+    if (status === 'running') return 50;
+    if (status === 'done') return 100;
+    if (status === 'failed') return 100;
+    return 0;
+  };
+
+  const updateFromStatus = (statusResponse) => {
+    const strategyProgress = {};
+    let currentIndex = statusResponse.strategies.length;
+    statusResponse.strategies.forEach((strategy, index) => {
+      strategyProgress[strategy.strategy] = getProgressValue(strategy.status);
+      if (currentIndex === statusResponse.strategies.length && strategy.status === 'running') {
+        currentIndex = index;
+      }
+      if (currentIndex === statusResponse.strategies.length && strategy.status === 'pending') {
+        currentIndex = index;
+      }
+    });
+    setRunState((state) => ({
+      ...state,
+      phase: statusResponse.status === 'failed' ? 'failed' : statusResponse.status,
+      perStrategy: strategyProgress,
+      current: currentIndex === statusResponse.strategies.length ? Math.max(0, statusResponse.strategies.length - 1) : currentIndex,
+      error: statusResponse.error || '',
+      elapsed: statusResponse.completed_at && statusResponse.started_at
+        ? Math.max(0, Math.floor(statusResponse.completed_at - statusResponse.started_at))
+        : state.elapsed,
+    }));
+    if (statusResponse.status === 'done') {
+      fetchResults(statusResponse.run_id);
+    }
+  };
+
+  const fetchResults = async (activeRunId) => {
+    try {
+      const results = await getApi().getEvaluationResults(activeRunId);
+      setRunState((state) => ({
+        ...state,
+        phase: 'done',
+        results,
+      }));
+    } catch (err) {
+      setRunState((state) => ({
+        ...state,
+        phase: 'failed',
+        error: `Failed to fetch results (${err.message}).`,
+      }));
+    }
+  };
+
+  const pollStatus = async (activeRunId) => {
+    try {
+      const statusResponse = await getApi().getEvaluationStatus(activeRunId);
+      updateFromStatus(statusResponse);
+    } catch (err) {
+      setRunState((state) => ({
+        ...state,
+        phase: 'failed',
+        error: `Polling failed (${err.message}).`,
+      }));
+    }
+  };
+
+  const runEval = async () => {
+    try {
+      const response = await getApi().startEvaluation(
+        selectedStrategies,
+        dataset.path || 'eval/questions.json',
+        'corpus',
+      );
+      setRunState({
+        phase: 'running',
+        current: 0,
+        perStrategy: {},
+        elapsed: 0,
+        runId: response.run_id,
+        error: '',
+        results: null,
+        startedAt: Date.now() / 1000,
+      });
+      pollStatus(response.run_id);
+    } catch (err) {
+      setRunState((state) => ({
+        ...state,
+        phase: 'failed',
+        error: `Failed to start evaluation (${err.message}).`,
+      }));
+    }
   };
 
   const totalProgress = enabledStrategies.length === 0 ? 0 :
-    enabledStrategies.reduce((s, st) => s + (perStrategy[st.id] ?? (st.id === enabledStrategies[current]?.id ? 0 : 0)), 0) / enabledStrategies.length;
+    enabledStrategies.reduce((s, st) => s + (perStrategy[st.id] ?? 0), 0) / enabledStrategies.length;
 
   const totalChars = files.reduce((s, f) => s + f.chars, 0);
   const estTotalSec = enabledStrategies.length * 14;
@@ -52,6 +145,12 @@ const EvaluatePage = ({ enabled, files, dataset, setProgress, setPage, runState,
             : null
         }
       />
+
+      {error && (
+        <div className="card" style={{marginBottom: 16, borderColor: 'rgba(244,63,94,0.4)', background: 'rgba(244,63,94,0.08)'}}>
+          <div style={{fontSize: 13, color: '#FCA5A5'}}>{error}</div>
+        </div>
+      )}
 
       <div className="grid grid-4" style={{marginBottom: 24}}>
         <div className="kpi">
@@ -76,7 +175,7 @@ const EvaluatePage = ({ enabled, files, dataset, setProgress, setPage, runState,
         </div>
       </div>
 
-      {phase === 'idle' && (
+      {(phase === 'idle' || phase === 'failed') && (
         <div className="card padded-lg" style={{textAlign: 'center', padding: '52px 24px', position: 'relative', overflow: 'hidden'}}>
           <div style={{position:'absolute', inset:0, background:'radial-gradient(circle at 50% 0%, rgba(59,130,246,0.10), transparent 60%)', pointerEvents:'none'}}></div>
           <div style={{position:'relative'}}>
@@ -89,7 +188,7 @@ const EvaluatePage = ({ enabled, files, dataset, setProgress, setPage, runState,
             <p className="muted" style={{fontSize: 13.5, maxWidth: 460, margin: '0 auto 24px'}}>
               All systems checked. Embeddings will be cached locally · run is fully reproducible from <span className="mono" style={{color:'var(--text-primary)'}}>config.yaml</span>.
             </p>
-            <button className="btn gradient xl" onClick={runEval}>
+            <button className="btn gradient xl" onClick={runEval} disabled={!selectedStrategies.length || !dataset.path}>
               <I name="play" size={16}/> Run evaluation
             </button>
             <div className="row gap-3" style={{justifyContent:'center', marginTop: 18}}>
@@ -148,6 +247,7 @@ const EvaluatePage = ({ enabled, files, dataset, setProgress, setPage, runState,
             {enabledStrategies.map((s, i) => {
               const p = perStrategy[s.id] ?? 0;
               const isCurrent = i === current && phase === 'running';
+              const strategyFailed = phase === 'failed' && isCurrent;
               const done = p >= 100 || (phase === 'done');
               return (
                 <div key={s.id} className="run-row">
@@ -155,22 +255,23 @@ const EvaluatePage = ({ enabled, files, dataset, setProgress, setPage, runState,
                   <div>
                     <div style={{fontSize: 13.5, fontWeight: 500}}>{s.name}</div>
                     <div className="dim" style={{fontSize: 11.5, fontFamily: 'var(--font-mono)', marginTop: 2}}>
-                      {done ? `${dataset.questions} / ${dataset.questions} questions` : isCurrent ? `${Math.floor(p / 100 * dataset.questions)} / ${dataset.questions} questions` : 'queued'}
+                      {done ? `${dataset.questions} / ${dataset.questions} questions` : strategyFailed ? 'failed' : isCurrent ? `${Math.floor(p / 100 * dataset.questions)} / ${dataset.questions} questions` : 'queued'}
                     </div>
                   </div>
                   <div className="progress-track">
                     <div
                       className={`progress-fill ${done ? 'success' : isCurrent ? 'shimmer' : ''}`}
-                      style={{width: `${done ? 100 : isCurrent ? p : 0}%`, opacity: !isCurrent && !done ? 0.3 : 1}}
+                      style={{width: `${done || strategyFailed ? 100 : isCurrent ? p : 0}%`, opacity: !isCurrent && !done && !strategyFailed ? 0.3 : 1}}
                     ></div>
                   </div>
                   <div className="run-status">
                     {done ? <span style={{color:'var(--emerald)'}}><I name="check" size={12}/> done</span>
+                      : strategyFailed ? <span style={{color:'var(--rose)'}}>failed</span>
                       : isCurrent ? <span style={{color:'var(--blue)'}}>running</span>
                       : 'waiting'}
                   </div>
                   <div className="run-status mono">
-                    {done ? `${(2 + Math.random() * 4).toFixed(1)}s` : isCurrent ? `${Math.floor(p)}%` : '—'}
+                    {done ? '100%' : strategyFailed ? 'ERR' : isCurrent ? `${Math.floor(p)}%` : '—'}
                   </div>
                 </div>
               );

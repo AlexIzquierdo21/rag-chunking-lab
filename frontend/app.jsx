@@ -10,16 +10,22 @@ const App = () => {
   const [page, setPage] = React.useState('upload');
   const [progress, setProgress] = React.useState({});
   const [files, setFiles] = React.useState(initialFiles);
-  const [enabled, setEnabled] = React.useState({
-    fixed: true, recursive: true, semantic: true, 'sentence-window': true, late: true,
-  });
+  const [selectedStrategies, setSelectedStrategies] = React.useState([]);
   const [dataset, setDataset] = React.useState({
-    path: '~/datasets/finance_qa_v2.jsonl',
-    questions: 240,
+    path: 'eval/questions.json',
+    questions: 0,
+    factual: 0,
+    multi_hop: 0,
+    adversarial: 0,
+    info: null,
   });
   const [runState, setRunState] = React.useState({
-    phase: 'idle', current: 0, perStrategy: {}, elapsed: 0,
+    phase: 'idle', current: 0, perStrategy: {}, elapsed: 0, runId: null, error: '', results: null, startedAt: null,
   });
+  const enabled = React.useMemo(
+    () => Object.fromEntries(selectedStrategies.map((strategy) => [strategy, true])),
+    [selectedStrategies],
+  );
 
   const crumbs = {
     upload: ['Experiment 12', 'Upload'],
@@ -45,8 +51,8 @@ const App = () => {
       <main className="main">
         <Topbar crumbs={crumbs} actions={topbarActions}/>
         {page === 'upload' && <UploadPage files={files} setFiles={setFiles} setProgress={setProgress} setPage={setPage}/>}
-        {page === 'configure' && <ConfigurePage enabled={enabled} setEnabled={setEnabled} setProgress={setProgress} setPage={setPage} dataset={dataset} setDataset={setDataset}/>}
-        {page === 'evaluate' && <EvaluatePage enabled={enabled} files={files} dataset={dataset} setProgress={setProgress} setPage={setPage} runState={runState} setRunState={setRunState}/>}
+        {page === 'configure' && <ConfigurePage selectedStrategies={selectedStrategies} setSelectedStrategies={setSelectedStrategies} setProgress={setProgress} setPage={setPage} dataset={dataset} setDataset={setDataset}/>}
+        {page === 'evaluate' && <EvaluatePage enabled={enabled} selectedStrategies={selectedStrategies} files={files} dataset={dataset} setProgress={setProgress} setPage={setPage} runState={runState} setRunState={setRunState}/>}
         {page === 'results' && <ResultsPage/>}
       </main>
     </React.Fragment>

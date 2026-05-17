@@ -205,6 +205,13 @@ def _run_strategy(
 
 
 def run_evaluation_task(run_id: str, config: EvaluationConfig) -> None:
+    """Run the blocking evaluation pipeline in a sync background task.
+
+    This function must remain synchronous (`def`, not `async def`) so FastAPI
+    executes it via the thread pool used by `BackgroundTasks`, avoiding
+    blocking the main event loop with sentence-transformers, ChromaDB and
+    Ollama calls.
+    """
     try:
         documents = _load_corpus(config.corpus_dir)
         questions = load_dataset(config.dataset_path)
@@ -280,6 +287,8 @@ def start_evaluation(config: EvaluationConfig, background_tasks: BackgroundTasks
         "error": None,
         "config": config.model_dump(),
     }
+    # Register the synchronous function directly so FastAPI runs it in the
+    # background thread pool instead of on the main event loop.
     background_tasks.add_task(run_evaluation_task, run_id, config)
     return {"run_id": run_id, "status": "pending"}
 
