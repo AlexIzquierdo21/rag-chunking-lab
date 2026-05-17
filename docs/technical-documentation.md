@@ -43,8 +43,9 @@ The project runs entirely locally with no external API dependencies, using Ollam
 
 | Component | Technology | Reason |
 |---|---|---|
-| Language | Python 3.11+ | Ecosystem, async support, type hints |
-| UI | Streamlit | Fast to build, no frontend knowledge required |
+| Language | Python 3.10+ | Ecosystem, type hints, modern runtime support |
+| Frontend | React (CDN prototype), vanilla fetch, JSX via Babel standalone | Lightweight local UI with no build step required |
+| Backend API | FastAPI with 3 routers (documents, datasets, evaluations) | Clear REST layer between UI and pipeline |
 | LLM inference | Ollama (local) | Zero cost, no API key, GPU-accelerated |
 | Embeddings | sentence-transformers | Local, fast, HuggingFace ecosystem |
 | Vector store | ChromaDB | Local, persistent, simple API |
@@ -52,7 +53,7 @@ The project runs entirely locally with no external API dependencies, using Ollam
 | Chunking (advanced) | LlamaIndex | Sentence-window, late chunking support |
 | Evaluation | Ragas | Standard RAG metrics, Ollama-compatible |
 | Document parsing | Unstructured.io | PDF, DOCX, TXT, HTML ingestion |
-| Reports | pandas + Plotly | Interactive charts in Streamlit |
+| Reports | pandas + Plotly | Metrics aggregation and visual comparison |
 | Testing | pytest | Unit and integration tests |
 | Linting | ruff + mypy | Code quality and type safety |
 
@@ -72,14 +73,28 @@ The project runs entirely locally with no external API dependencies, using Ollam
 
 ```
 chunking-comparator/
-├── app/                         # Streamlit UI
+├── app/                         # Streamlit UI prototype / alternative interface
 │   ├── pages/
 │   │   ├── 01_upload.py         # Document upload & corpus management
 │   │   ├── 02_configure.py      # Strategy & model selection
 │   │   ├── 03_evaluate.py       # Run evaluation
 │   │   └── 04_results.py        # Interactive report
 │   └── main.py                  # Streamlit entry point
+├── frontend/                    # React CDN prototype frontend
+│   ├── api.js                   # Browser API client
+│   ├── app.jsx                  # Root app shell
+│   ├── page-upload.jsx          # Upload page
+│   ├── page-configure.jsx       # Configure page
+│   ├── page-evaluate.jsx        # Evaluate page
+│   ├── page-results.jsx         # Results page
+│   └── RAG Chunking Lab.html    # Frontend entry point
 ├── src/
+│   ├── api/
+│   │   ├── main.py              # FastAPI application entry point
+│   │   └── routers/
+│   │       ├── documents.py     # Document API routes
+│   │       ├── datasets.py      # Dataset API routes
+│   │       └── evaluations.py   # Evaluation API routes
 │   ├── chunking/
 │   │   ├── base.py              # ChunkingStrategy ABC
 │   │   ├── fixed.py             # Fixed-size chunking
@@ -144,7 +159,7 @@ class ChunkingStrategy(ABC):
 
 The evaluation pipeline follows a linear flow with no shared mutable state between stages:
 
-1. User uploads documents via Streamlit UI
+1. User uploads documents via the frontend UI
 2. Ingestor parses documents to plain text (PDF, DOCX, TXT, HTML)
 3. Each strategy chunks the corpus independently
 4. Embedder generates vectors for each chunk set (sentence-transformers)
@@ -152,7 +167,27 @@ The evaluation pipeline follows a linear flow with no shared mutable state betwe
 6. For each question in the golden dataset, retriever fetches top-k chunks per strategy
 7. Generator calls Ollama to produce an answer from retrieved context
 8. Evaluator runs Ragas metrics on question + context + answer triplets
-9. Report builder aggregates results and renders charts in Streamlit
+9. Report builder aggregates results and the frontend renders charts and rankings
+
+### 3.5 API Layer
+
+The project exposes a FastAPI backend that sits between the frontend and the RAG pipeline. The API is organized into three routers: `documents`, `datasets`, and `evaluations`, with a small core application layer in `src/api/main.py`.
+
+Implemented endpoints:
+
+- `GET /api/health`
+- `GET /api/strategies`
+- `GET /api/models`
+- `POST /api/documents/upload`
+- `GET /api/documents`
+- `DELETE /api/documents/{filename}`
+- `POST /api/datasets/load`
+- `GET /api/datasets/default`
+- `POST /api/evaluations/start`
+- `GET /api/evaluations/{run_id}/status`
+- `GET /api/evaluations/{run_id}/results`
+
+This API layer allows the browser frontend to remain thin while the backend owns document ingestion, dataset loading, evaluation orchestration, and result retrieval.
 
 ---
 
@@ -302,7 +337,7 @@ RETRIEVAL_TOP_K=5
 - Never silently swallow exceptions with bare `except`
 - Use custom exception classes for domain errors (`ChunkingError`, `EvaluationError`, `IngestionError`)
 - Log errors with context — include the operation, input shape, and strategy name
-- Validate all user inputs at the Streamlit boundary, not inside pipeline functions
+- Validate all user inputs at the UI/API boundary, not inside pipeline functions
 
 ### 7.3 Copilot Usage Guidelines
 
@@ -318,7 +353,7 @@ RETRIEVAL_TOP_K=5
 - Bypass the `ChunkingStrategy` interface
 - Add dependencies not listed in the tech stack
 - Add bare `except` or `except Exception` blocks
-- Put business logic inside Streamlit page files
+- Put business logic inside frontend page files or Streamlit page files
 - Hardcode model names, URLs, or file paths
 
 ### 7.4 Testing
@@ -358,7 +393,7 @@ mypy = "^1.10"
 
 ### 8.1 Prerequisites
 
-- Python 3.11+
+- Python 3.10+
 - [Ollama](https://ollama.com) installed and running
 - NVIDIA GPU with CUDA drivers (recommended — CPU works but is slower)
 
@@ -378,8 +413,11 @@ ollama pull llama3.2
 # 4. Copy and edit the environment file
 cp .env.example .env
 
-# 5. Launch the Streamlit app
-streamlit run app/main.py
+# 5. Start the FastAPI backend
+uvicorn src.api.main:app --reload --port 8000
+
+# 6. Start the frontend
+cd frontend && python -m http.server 5500
 ```
 
 ### 8.3 Changing the Ollama Model
